@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Rotas Agil Aduaneira</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f4f3ef; --surface: #ffffff; --border: rgba(0,0,0,0.08);
+    --text: #1a1a1a; --muted: #6b6b6b; --accent: #1a3c5e;
+    --teal: #1D9E75; --amber: #BA7517; --purple: #7F77DD;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  /* ── LOGIN ── */
+  #tela-login {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: var(--accent);
+  }
+  .login-box {
+    background: #fff; border-radius: 16px; padding: 2.5rem 2rem;
+    width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .login-logo { text-align: center; margin-bottom: 1.75rem; }
+  .login-logo h1 { font-size: 18px; font-weight: 600; color: var(--accent); }
+  .login-logo p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .campo { margin-bottom: 1rem; }
+  .campo label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .campo input {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+    outline: none; transition: border 0.2s;
+  }
+  .campo input:focus { border-color: var(--accent); }
+  .btn-login {
+    width: 100%; padding: 11px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer; margin-top: 0.5rem;
+    transition: opacity 0.2s;
+  }
+  .btn-login:hover { opacity: 0.88; }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+  #login-erro { color: #993c1d; font-size: 12px; margin-top: 10px; text-align: center; min-height: 18px; }
+
+  /* ── DASHBOARD ── */
+  #tela-dash { display: none; }
+  header {
+    background: var(--accent); color: #fff; padding: 1.25rem 2rem;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header p { font-size: 12px; opacity: 0.65; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #status-badge {
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.12); color: #fff;
+  }
+  #status-badge.ok { background: rgba(29,158,117,0.3); }
+  #status-badge.err { background: rgba(153,60,29,0.3); }
+  .btn-header {
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3);
+    background: transparent; color: #fff; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-header:hover { background: rgba(255,255,255,0.1); }
+
+  /* filtros */
+  .filtros {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0.75rem 2rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .filtros label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .filtros input[type=date] {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; outline: none; background: var(--bg);
+  }
+  .filtros input[type=date]:focus { border-color: var(--accent); }
+  .btn-filtrar {
+    padding: 5px 16px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-family: inherit;
+    cursor: pointer; font-weight: 500;
+  }
+  .btn-limpar {
+    padding: 5px 14px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+    font-family: inherit; cursor: pointer;
+  }
+  .filtro-info { font-size: 12px; color: var(--accent); font-weight: 500; margin-left: auto; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; position: relative; overflow: hidden; }
+  .metric::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .metric.m1::before { background: var(--accent); }
+  .metric.m2::before { background: var(--teal); }
+  .metric.m3::before { background: var(--amber); }
+  .metric.m4::before { background: var(--purple); }
+  .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; }
+  .metric-value { font-size: 26px; font-weight: 600; line-height: 1; }
+  .metric-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+  .card h3, .card-full h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 1rem; }
+  .card-full { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .badge-imp { background: #E6F1FB; color: #0C447C; }
+  .badge-exp { background: #E1F5EE; color: #085041; }
+  .badge-int { background: #FAEEDA; color: #633806; }
+  .loading { text-align: center; padding: 4rem; color: var(--muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer { text-align: center; font-size: 11px; color: var(--muted); padding: 1rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } main { padding: 1rem; } header, .filtros { padding: 1rem; } }
+</style>
+</head>
+<body>
+
+<!-- TELA DE LOGIN -->
+<div id="tela-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>Rotas Agil Aduaneira</h1>
+      <p>Dashboard Operacional · Acesso restrito</p>
+    </div>
+    <div class="campo">
+      <label>E-mail</label>
+      <input type="email" id="email" placeholder="seu@email.com" autocomplete="username" />
+    </div>
+    <div class="campo">
+      <label>Senha</label>
+      <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-login" id="btn-entrar" onclick="fazerLogin()">Entrar</button>
+    <div id="login-erro"></div>
+  </div>
+</div>
+
+<!-- TELA DO DASHBOARD -->
+<div id="tela-dash">
+  <header>
+    <div>
+      <h1>Rotas Agil Aduaneira — Dashboard Operacional</h1>
+      <p id="periodo-header">Carregando dados...</p>
+    </div>
+    <div class="header-right">
+      <span id="status-badge">aguardando...</span>
+      <button class="btn-header" onclick="carregarDados()">↻ Atualizar</button>
+      <button class="btn-header" onclick="fazerLogout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="filtros">
+    <label>De:</label>
+    <input type="date" id="filtro-de" />
+    <label>Até:</label>
+    <input type="date" id="filtro-ate" />
+    <button class="btn-filtrar" onclick="aplicarFiltro()">Filtrar</button>
+    <button class="btn-limpar" onclick="limparFiltro()">Limpar</button>
+    <span class="filtro-info" id="filtro-info"></span>
+  </div>
+
+  <main>
+    <div id="conteudo">
+      <div class="loading"><span class="spinner"></span>Buscando dados da planilha...</div>
+    </div>
+  </main>
+
+  <footer>Dashboard conectado ao Google Sheets via CSV público · Dados atualizados a cada acesso</footer>
+</div>
+
+<script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://bihfnohyhexxomqrwqeq.supabase.co';
+const SUPA_KEY = 'sb_publishable_YhMeNi3yU3S1hiPT5_plYg_zgESGUUR';
+const { createClient } = supabase;
+const sb = createClient(SUPA_URL, SUPA_KEY);
+
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRl8sVJWLSeUfDw-rgrjfXTQM1IRG0IN6AxKadWDT1B7DxxjD3n09VT-9AtB983nns4sA-d3QohCpmy/pub?gid=227733519&single=true&output=csv';
+
+let todosRegistros = [];
+let charts = [];
+
+// ── AUTH ──
+async function verificarSessao() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) mostrarDash();
+  else mostrarLogin();
+}
+
+function mostrarLogin() {
+  document.getElementById('tela-login').style.display = 'flex';
+  document.getElementById('tela-dash').style.display = 'none';
+}
+
+function mostrarDash() {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('tela-dash').style.display = 'block';
+  carregarDados();
+}
+
+async function fazerLogin() {
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value;
+  const btn = document.getElementById('btn-entrar');
+  const erro = document.getElementById('login-erro');
+  erro.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  if (error) {
+    erro.textContent = 'E-mail ou senha incorretos. Tente novamente.';
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  } else {
+    mostrarDash();
+  }
+}
+
+async function fazerLogout() {
+  await sb.auth.signOut();
+  mostrarLogin();
+}
+
+// Enter no campo de senha faz login
+document.getElementById('senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+document.getElementById('email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('senha').focus(); });
+
+// ── DADOS ──
+function destroyCharts() { charts.forEach(c => c.destroy()); charts = []; }
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    vals.push(cur.trim());
+    const v = i => (vals[i] || '').replace(/"/g, '').trim();
+    return {
+      'Data:'            : v(1),
+      'Serviço:'         : v(2),
+      'Especificar:'     : v(3),
+      'Local:'           : v(4),
+      'Tipo de Serviço:' : v(5),
+      'Solicitante:'     : v(6),
+      'Rota:'            : v(7),
+      'Valor:'           : v(8),
+    };
+  }).filter(r => r['Data:'] && r['Data:'].length > 0);
+}
+
+function parseValor(v) {
+  if (!v) return 0;
+  return parseFloat(v.replace('R$','').replace(/\./g,'').replace(',','.').trim()) || 0;
+}
+
+function formatBRL(v) {
+  return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseDateBR(s) {
+  if (!s) return null;
+  const p = s.split('/');
+  if (p.length === 3) return new Date(+p[2], +p[1]-1, +p[0]);
+  if (p.length === 2) return new Date(2026, +p[1]-1, +p[0]);
+  return null;
+}
+
+function sortDatas(keys) {
+  return keys.sort((a, b) => (parseDateBR(a)||0) - (parseDateBR(b)||0));
+}
+
+function aplicarFiltro() {
+  const de = document.getElementById('filtro-de').value;
+  const ate = document.getElementById('filtro-ate').value;
+  let filtrados = [...todosRegistros];
+  let info = '';
+  if (de || ate) {
+    const dDe = de ? new Date(de + 'T00:00:00') : null;
+    const dAte = ate ? new Date(ate + 'T23:59:59') : null;
+    filtrados = filtrados.filter(r => {
+      const d = parseDateBR(r['Data:']);
+      if (!d) return false;
+      if (dDe && d < dDe) return false;
+      if (dAte && d > dAte) return false;
+      return true;
+    });
+    const deStr = de ? new Date(de+'T12:00:00').toLocaleDateString('pt-BR') : '...';
+    const ateStr = ate ? new Date(ate+'T12:00:00').toLocaleDateString('pt-BR') : '...';
+    info = `Filtrando: ${deStr} → ${ateStr} · ${filtrados.length} registros`;
+  }
+  document.getElementById('filtro-info').textContent = info;
+  renderDash(filtrados);
+}
+
+function limparFiltro() {
+  document.getElementById('filtro-de').value = '';
+  document.getElementById('filtro-ate').value = '';
+  document.getElementById('filtro-info').textContent = '';
+  renderDash(todosRegistros);
+}
+
+function makeChart(id, config) { const c = new Chart(document.getElementById(id), config); charts.push(c); }
+
+function renderDash(registros) {
+  destroyCharts();
+  if (!registros.length) {
+    document.getElementById('conteudo').innerHTML = '<div class="loading">Nenhum registro encontrado para o período selecionado.</div>';
+    return;
+  }
+
+  const totalReceita = registros.reduce((s, r) => s + parseValor(r['Valor:']), 0);
+  const rotas = registros.filter(r => r['Serviço:'] === 'Rota');
+  const outros = registros.filter(r => r['Serviço:'] === 'Outros');
+  const faturados = registros.filter(r => parseValor(r['Valor:']) > 0);
+  const ticketMedio = faturados.length ? faturados.reduce((s,r) => s + parseValor(r['Valor:']), 0) / faturados.length : 0;
+
+  const porDia = {};
+  registros.forEach(r => { const d = r['Data:']; porDia[d] = (porDia[d]||0) + parseValor(r['Valor:']); });
+  const diasKeys = sortDatas(Object.keys(porDia));
+
+  const tiposMap = {};
+  registros.forEach(r => { const t = r['Tipo de Serviço:'] || r['Serviço:'] || 'Outros'; tiposMap[t] = (tiposMap[t]||0)+1; });
+
+  const locaisMap = {};
+  registros.forEach(r => { if(r['Local:']) locaisMap[r['Local:']] = (locaisMap[r['Local:']]||0)+1; });
+  const locaisSorted = Object.entries(locaisMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const solMap = {};
+  registros.forEach(r => {
+    const s = r['Solicitante:'] || '-';
+    if (!solMap[s]) solMap[s] = { count:0, valor:0 };
+    solMap[s].count++;
+    solMap[s].valor += parseValor(r['Valor:']);
+  });
+  const solSorted = Object.entries(solMap).sort((a,b)=>b[1].count-a[1].count).slice(0,12);
+
+  const datas = registros.map(r=>r['Data:']).filter(Boolean);
+  const datasOrdenadas = sortDatas([...new Set(datas)]);
+  const periodoStr = datasOrdenadas.length ? `${datasOrdenadas[0]} a ${datasOrdenadas[datasOrdenadas.length-1]} · ${registros.length} registros` : '';
+  document.getElementById('periodo-header').textContent = periodoStr;
+
+  const tipoCores = ['#378ADD','#1D9E75','#BA7517','#D85A30','#7F77DD','#888780','#D4537E'];
+  const tipoLabels = Object.keys(tiposMap);
+  const legendHTML = tipoLabels.map((l,i) => `<span><span class="legend-dot" style="background:${tipoCores[i%tipoCores.length]}"></span>${l} (${tiposMap[l]})</span>`).join('');
+
+  const linhasTabela = solSorted.map(([nome, d]) => {
+    const isExp = nome.includes('Exportação'), isImp = nome.includes('Importação');
+    const cls = isExp ? 'badge-exp' : isImp ? 'badge-imp' : 'badge-int';
+    const label = isExp ? 'Exportação' : isImp ? 'Importação' : 'Interno';
+    return `<tr>
+      <td>${nome.replace(/ \(.*\)/,'')}</td>
+      <td style="font-family:'DM Mono',monospace">${d.count}</td>
+      <td><span class="badge ${cls}">${label}</span></td>
+      <td style="font-family:'DM Mono',monospace">${formatBRL(d.valor)}</td>
+    </tr>`;
+  }).join('');
+
+  const barH = Math.max(260, locaisSorted.length * 42 + 60);
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="metrics">
+      <div class="metric m1"><div class="metric-label">Receita total</div><div class="metric-value">${formatBRL(totalReceita)}</div><div class="metric-sub">${registros.length} registros no período</div></div>
+      <div class="metric m2"><div class="metric-label">Total de rotas</div><div class="metric-value">${rotas.length}</div><div class="metric-sub">Serviço principal</div></div>
+      <div class="metric m3"><div class="metric-label">Outros serviços</div><div class="metric-value">${outros.length}</div><div class="metric-sub">Cartório, amostras etc.</div></div>
+      <div class="metric m4"><div class="metric-label">Ticket médio</div><div class="metric-value">${formatBRL(ticketMedio)}</div><div class="metric-sub">Por serviço faturado</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Receita por dia</h3><div style="position:relative;width:100%;height:220px"><canvas id="chartDia"></canvas></div></div>
+      <div class="card"><h3>Tipo de serviço</h3><div class="legend">${legendHTML}</div><div style="position:relative;width:100%;height:180px"><canvas id="chartTipo"></canvas></div></div>
+    </div>
+    <div class="card-full"><h3>Locais mais visitados</h3><div style="position:relative;width:100%;height:${barH}px"><canvas id="chartLocal"></canvas></div></div>
+    <div class="card"><h3>Solicitantes — resumo</h3><table><thead><tr><th>Solicitante</th><th>Qtd</th><th>Tipo</th><th>Valor total</th></tr></thead><tbody>${linhasTabela}</tbody></table></div>
+  `;
+
+  makeChart('chartDia', { type:'bar', data:{ labels:diasKeys, datasets:[{ label:'Receita', data:diasKeys.map(d=>porDia[d]), backgroundColor:'#1a3c5e', borderRadius:5 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45},grid:{display:false}}, y:{ticks:{callback:v=>'R$'+v,font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}} } } });
+  makeChart('chartTipo', { type:'doughnut', data:{ labels:tipoLabels, datasets:[{ data:tipoLabels.map(t=>tiposMap[t]), backgroundColor:tipoCores, borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, cutout:'62%' } });
+  makeChart('chartLocal', { type:'bar', data:{ labels:locaisSorted.map(l=>l[0]), datasets:[{ label:'Visitas', data:locaisSorted.map(l=>l[1]), backgroundColor:'#0f6e56', borderRadius:5 }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}, y:{ticks:{font:{size:12}},grid:{display:false}} } } });
+}
+
+async function carregarDados() {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = 'atualizando...'; badge.className = '';
+  try {
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    todosRegistros = parseCSV(text);
+    if (!todosRegistros.length) throw new Error('sem dados');
+    renderDash(todosRegistros);
+    const agora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    badge.textContent = '✓ atualizado às ' + agora; badge.className = 'ok';
+  } catch(e) {
+    badge.textContent = '⚠ erro: ' + e.message; badge.className = 'err';
+    document.getElementById('conteudo').innerHTML = `<div class="loading">Não foi possível carregar os dados.<br><small>${e.message}</small></div>`;
+  }
+}
+
+// Iniciar
+verificarSessao();
+</script>
+</body>
+</html>
